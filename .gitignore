@@ -1,0 +1,14 @@
+backend/.venv/
+.venv/
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+*.onnx
+*.onnx.json
+*.bin
+*.log
+.env
+config.json
+.DS_Store
+Thumbs.db

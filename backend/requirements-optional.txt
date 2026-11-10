@@ -1,0 +1,3 @@
+# Opcionais (voz neural offline)
+piper-tts
+kokoro-onnx

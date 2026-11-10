@@ -1,0 +1,13 @@
+{
+  "model": "llama3.1:latest",
+  "ollama_url": "http://localhost:11434",
+  "allowed_roots": ["/home/SEU_USUARIO"],
+  "lat": -23.55,
+  "lon": -46.63,
+  "voice": true,
+  "hypr_control": false,
+  "screen_control": false,
+  "commands": {"espaco_disco": "df -h /", "uptime": "uptime"},
+  "n8n": {"url": "http://umbrel.local:5678", "token": "", "workflows": {}, "readonly": []},
+  "mcp": {"servers": {"umbrel": {"url": "http://umbrel.local/mcp", "token": "COLE_O_TOKEN_AQUI", "readonly": []}}}
+}

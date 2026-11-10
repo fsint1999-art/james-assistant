@@ -1,0 +1,122 @@
+"""Agente Observe -> Reason -> Respond sobre Ollama (local-first)."""
+import json, re, time, httpx
+from pathlib import Path
+from tools import file_manager, hyprland_bridge, web_search, weather, calendar_tool, store, system_control, screen, umbrel
+
+from tools.config import cfg
+
+TOOLS = {
+    "file_manager": lambda **a: file_manager.run(**a),
+    "hyprland_control": lambda **a: hyprland_bridge.run(**a),
+    "search_web": lambda **a: web_search.search(**a),
+    "weather": lambda **a: weather.current(),
+    "calendar": lambda **a: calendar_tool.run(**a),
+    "memory": lambda **a: store.memory(**a),
+    "system_control": lambda **a: system_control.run(**a),
+    "run_command": lambda **a: system_control.run_command(**a),
+    "screen": lambda **a: screen.run(**a),
+    "n8n": lambda **a: umbrel.run(**a),
+    "tasks": lambda **a: store.tasks(**a),
+}
+SYSTEM = """Você é JAMES, um general veterano e disciplinado, assistente num Arch Linux/Hyprland. Fale português firme, direto e respeitoso, trate o usuário por "senhor", sem gírias nem emojis, no máximo duas frases curtas por resposta.
+Para usar uma ferramenta, responda SOMENTE com JSON: {"tool":"<nome>","args":{...}}.
+Ferramentas:
+- file_manager: args {"action":"search|read|list|move|compress|write|append|replace", ...} (search: query,root | read: path | list: path | move: src,dst | compress: src,dst | write,append: path,content | replace: path,old,new)
+- hyprland_control: args {"action":"workspaces|windows|goto_workspace|launch|close_active|toggle_float|fullscreen|move_to_workspace", "id":N, "app":"nome"}
+- search_web: args {"query":"..."}
+- memory: args {"action":"add","text":"..."} | {"action":"list"} | {"action":"delete","id":N}  (use add quando o usuário pedir para lembrar algo)
+- tasks: args {"action":"add","title":"..."} | {"action":"list"} | {"action":"done","id":N}
+- system_control: args {"action":"volume_get|volume_set|mute_toggle|brightness_get|brightness_set|clipboard_set|clipboard_get|screenshot","percent":N,"text":"..."}
+- run_command: args {"name":"<comando permitido>"}
+- screen: args {"action":"look","question":"..."} ou {"action":"type_text","text":".."} | {"action":"key","code":"enter|tab|esc"} | {"action":"click","x":N,"y":N}
+- n8n: args {"action":"list"} ou {"action":"run","name":"<fluxo>","payload":{...}}  (automações do Umbrel)
+- weather: args {} (clima atual e previsão)
+- calendar: args {"action":"list","days":7} ou {"action":"add","title":"...","start":"2026-11-05T14:30"}
+Hoje é {TODAY}.
+Quando tiver a informação necessária, responda em texto normal, sem JSON."""
+
+USAGE = {"in": 0, "out": 0, "turns": 0}
+def installed():
+    try: return [m["name"] for m in httpx.get(cfg()["ollama_url"] + "/api/tags", timeout=3).json()["models"]]
+    except Exception: return []
+def resolve_model():
+    want, names = cfg()["model"], installed()
+    return want if not names or want in names or want + ":latest" in names else names[0]
+def _llm(messages):
+    c = cfg()
+    r = httpx.post(f"{c['ollama_url']}/api/chat", json={"model": resolve_model(), "messages": messages, "stream": False}, timeout=180)
+    r.raise_for_status(); j = r.json()
+    USAGE["in"] += j.get("prompt_eval_count", 0); USAGE["out"] += j.get("eval_count", 0); USAGE["turns"] += 1
+    return j["message"]["content"]
+
+PENDING = {}
+YES = ("sim", "confirmo", "confirma", "pode", "claro", "positivo", "faça", "isso")
+NO = ("não", "nao", "cancela", "cancelar", "negativo", "deixa")
+def needs_confirm(name, a):
+    """Descrição da ação se ela altera algo (exige 'sim'); None se for só leitura/ajuste trivial."""
+    act = a.get("action")
+    if name == "file_manager":
+        if act == "move": return f"mover {a.get('src')} para {a.get('dst')}"
+        if act == "compress": return f"compactar {a.get('src')} em {a.get('dst')}"
+        if act in ("write", "append", "replace"): return f"{ {'write': 'gravar o arquivo', 'append': 'acrescentar texto ao arquivo', 'replace': 'editar o arquivo'}[act] } {a.get('path')}"
+    if name == "hyprland_control":
+        if act == "launch": return f"abrir {a.get('app')}"
+        if act == "close_active": return "fechar a janela ativa"
+        if act == "move_to_workspace": return f"mover a janela para o workspace {a.get('id')}"
+    if name == "system_control" and act == "clipboard_set": return "copiar texto para a área de transferência"
+    if name == "n8n" and act == "run": return f"disparar o fluxo {a.get('name')} no n8n do Umbrel"
+    if name == "run_command" and isinstance(a.get("name"), str) and a["name"] in cfg()["commands"]: return f"executar o comando {a['name']}"
+    if name == "screen" and act != "look": return f"controlar a tela ({act})"
+    return None
+def confirm_answer(text):
+    """Resolve um 'sim/não' pendente. Retorna a resposta, ou None se não havia pendência/resposta clara."""
+    if not PENDING: return None
+    p = dict(PENDING); PENDING.clear()
+    if time.time() - p["t"] > 90: return None
+    w = text.lower().replace(",", " ").replace(".", " ").split()
+    if any(x in w for x in NO): return "Cancelado, senhor."
+    if any(x in w for x in YES):
+        try: return f"Está feito, senhor. {str(TOOLS[p['name']](**p['args']))[:300]}"
+        except Exception as e: return f"Falhou: {e}"
+    return None
+
+def run_agent(prompt: str, history=None, max_steps=4):
+    """Retorna (resposta, passos) onde passos alimentam o painel INTELLIGENCE."""
+    msgs = [{"role": "system", "content": (SYSTEM + store.memory_block() + system_control.commands_hint() + umbrel.hint()).replace("{TODAY}", __import__("time").strftime("%Y-%m-%d %H:%M"))}, *(history or []), {"role": "user", "content": prompt}]
+    steps = []
+    try:
+        for _ in range(max_steps):
+            out = _llm(msgs)
+            m = re.search(r"\{.*\}", out, re.S)
+            call = None
+            if m:
+                try: call = json.loads(m.group(0))
+                except json.JSONDecodeError: pass
+            if not call or "tool" not in call:
+                steps.append({"phase": "respond", "tool": None, "status": "ok"})
+                return out.strip(), steps
+            name, args = call["tool"], call.get("args", {})
+            steps.append({"phase": "observe", "tool": name, "args": args, "status": "running"})
+            d = needs_confirm(name, args)
+            if d:
+                PENDING.update(name=name, args=args, t=time.time()); steps[-1]["status"] = "pendente"
+                return f"Com sua licença, senhor, posso {d}? Responda sim ou não.", steps
+            try: res = TOOLS[name](**args); steps[-1]["status"] = "ok"; steps[-1]["result"] = str(res)[:400]
+            except Exception as e: res = f"ERRO: {e}"; steps[-1]["status"] = "error"
+            msgs += [{"role": "assistant", "content": out}, {"role": "user", "content": f"Resultado de {name}: {json.dumps(res, ensure_ascii=False)[:4000]}"}]
+        return "Limite de passos atingido.", steps
+    except httpx.HTTPError as e:
+        return f"Não consegui falar com o Ollama ({e}). Rode `ollama serve` e `ollama pull llama3`.", [{"phase": "error", "tool": None, "status": "error"}]
+
+
+def direct(name, args):
+    """Executa uma chamada de ferramenta já decidida (atalhos de voz), respeitando a confirmação."""
+    steps = [{"phase": "observe", "tool": name, "args": args, "status": "running"}]
+    d = needs_confirm(name, args)
+    if d:
+        PENDING.update(name=name, args=args, t=time.time()); steps[0]["status"] = "pendente"
+        return f"Com sua licença, senhor, posso {d}? Responda sim ou não.", steps
+    try: res = TOOLS[name](**args); steps[0].update(status="ok", result=str(res)[:400])
+    except Exception as e: steps[0]["status"] = "error"; return f"Não foi possível, senhor: {e}", steps
+    if isinstance(res, list): res = ", ".join(sorted({str(x.get("class", x)) if isinstance(x, dict) else str(x) for x in res})) or "nenhuma"
+    return "Feito, senhor." + ("" if str(res).strip().lower() in ("", "ok") else f" {str(res)[:200]}"), steps

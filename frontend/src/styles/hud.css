@@ -1,0 +1,52 @@
+:root{--bg:#030a14;--panel:#07182a;--cyan:#38d9ff;--gold:#e8b44a;--alert:#ff5a5f;--ok:#4be3a0;--txt:#cfeaf5;--dim:#5f8196}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 45%,#06223b,var(--bg) 70%);color:var(--txt);font:14px "Chakra Petch",sans-serif;min-height:100vh}
+.hud{display:grid;grid-template-columns:minmax(260px,330px) 1fr minmax(280px,380px);grid-template-rows:auto 1fr;gap:16px;padding:18px 24px;height:100vh}
+header{grid-column:1/-1;display:flex;align-items:baseline;gap:16px}h1{margin:0;font-size:22px;letter-spacing:.35em;color:var(--cyan);font-weight:600}
+header time{margin-left:auto;font:28px "Share Tech Mono",monospace;text-align:right}header small{display:block;font:12px "Chakra Petch";color:var(--dim)}
+.left,.right{display:flex;flex-direction:column;gap:16px;min-height:0}
+.panel{border:1px solid #1b4a66;background:linear-gradient(160deg,#0a2236cc,#061523cc);border-radius:6px;padding:14px 16px;box-shadow:0 0 24px #38d9ff12 inset}
+.panel h2{margin:0 0 12px;font:600 12px "Chakra Petch";letter-spacing:.18em;color:var(--gold)}
+.row{margin-bottom:12px}.rl{display:flex;justify-content:space-between;font-size:12px}.rl b{font:13px "Share Tech Mono"}
+.bar{height:5px;background:#0e2e46;margin:5px 0 3px}.bar i{display:block;height:100%;transition:width .6s}small{color:var(--dim);font-size:11px}
+.kv{display:flex;justify-content:space-between;font-size:12px}.ok{color:var(--ok)}.bad{color:var(--alert)}.dim{color:var(--dim)}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:0}
+.reactor{width:min(46vh,420px);overflow:visible}.reactor line,.reactor circle{fill:none;stroke:var(--cyan);stroke-width:1.5}
+.ring{transform-origin:150px 150px}.r1{animation:spin 60s linear infinite;opacity:.6}.r2{animation:spin 24s linear infinite reverse}.r3{animation:spin 40s linear infinite;opacity:.7}
+.reactor .gold{stroke:var(--gold);stroke-width:2;filter:drop-shadow(0 0 6px var(--gold))}
+.bars rect{fill:var(--cyan);transform-origin:center;transform-box:fill-box;animation:wave 1.6s ease-in-out infinite;opacity:.8}
+.reactor.busy .r2{animation-duration:3s}.reactor.busy .bars rect{animation-duration:.5s}.reactor.listen .gold{stroke:var(--cyan)}.reactor.idle .bars rect{animation-duration:3s}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes wave{50%{transform:scaleY(.2)}}
+.reply{max-width:620px;text-align:center;font-size:17px;line-height:1.45;margin:0;max-height:20vh;overflow:auto}
+.input{display:flex;gap:8px;width:min(640px,100%);border:1px solid #1b4a66;border-radius:6px;padding:6px;background:#06192b}
+.input input{flex:1;background:none;border:0;color:var(--txt);font:inherit;padding:8px;outline:none}
+button{background:#0c3552;border:1px solid #1f6d94;color:var(--cyan);border-radius:4px;padding:8px 14px;font:inherit;cursor:pointer}button.on{border-color:var(--alert);color:var(--alert)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold)}
+.orr{display:flex;gap:6px;margin-bottom:10px}.orr span{padding:3px 10px;border:1px solid #1b4a66;color:var(--dim);font-size:12px}.orr .on{color:var(--bg);background:var(--cyan)}
+.tools{list-style:none;margin:0;padding:0}.tools li{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #12344c}
+em{font-style:normal;font-size:12px}em.ok{color:var(--ok)}em.error{color:var(--alert)}em.running{color:var(--gold)}
+.feed{flex:1;min-height:0;display:flex;flex-direction:column}.lines{overflow:auto;font:12px/1.5 "Share Tech Mono",monospace}
+.lines p{margin:0 0 6px}.lines time{color:var(--dim)}.lines b{color:var(--cyan)}.lines .USER b{color:var(--gold)}.lines .TOOL b{color:var(--ok)}
+@media(max-width:980px){.hud{grid-template-columns:1fr;height:auto}.reactor{width:60vw}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+.chip{margin:0;padding:4px 14px;border:1px solid #1b4a66;border-radius:99px;font-size:12px;color:var(--dim)}
+.chip.listening{color:var(--gold);border-color:var(--gold)}.chip.thinking{color:var(--cyan);border-color:var(--cyan)}
+.temp{font:600 40px "Chakra Petch";color:var(--cyan)}.temp span{font-size:14px;color:var(--txt);margin-left:10px;font-weight:400}
+.panel small{display:block;margin-top:4px}
+.svc{width:100%;max-height:200px}.svc .orbit{fill:none;stroke:#12344c;stroke-dasharray:3 5}.svc line{stroke:#12344c}
+.svc text{fill:var(--dim);font-size:10px}.svc .node circle{fill:var(--bg);stroke:#2a4a5e;stroke-width:1.5}
+.node.ok circle{stroke:var(--cyan)}.node.ok text{fill:var(--txt)}.node.active circle{stroke:var(--gold);fill:var(--gold);animation:pulse 1.2s infinite}.node.active line{stroke:var(--gold)}.node.active text{fill:var(--gold)}
+.hub{fill:var(--bg);stroke:var(--cyan)}.hubt{fill:var(--cyan)!important;font-size:14px!important}@keyframes pulse{50%{opacity:.4}}
+.right .panel:not(.feed){flex:none}.left{overflow:auto}
+nav{display:flex;gap:6px;margin-left:24px}nav button,.seg button{padding:5px 12px;font-size:13px}.on2{background:var(--cyan)!important;color:var(--bg)!important}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.page{grid-column:1/-1;overflow:auto;min-height:0}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.col{display:flex;flex-direction:column;gap:16px}.wide{max-width:900px}
+.qr{display:block;width:100%;margin-bottom:8px;text-align:left}.btn{display:inline-block;background:#0c3552;border:1px solid #1f6d94;color:var(--cyan);border-radius:4px;padding:8px 14px;cursor:pointer}
+.done{text-decoration:line-through;color:var(--dim)}.tall{max-height:60vh}.page .input{margin-bottom:12px;width:100%}.tools li{gap:10px;align-items:center}.tools li span{flex:1}
+@media(max-width:980px){.grid3{grid-template-columns:1fr}}
+em.pendente{color:var(--gold)}
+.core{width:min(50vh,460px);aspect-ratio:1;display:block}
+button[aria-pressed="true"]{border-color:var(--alert);color:var(--alert)}
+.msg-actions{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px}.msg-actions button,.msg-actions a{font-size:12px;padding:3px 10px;text-decoration:none}
+.code{position:relative;text-align:left;margin:8px 0}.code pre{background:#04101c;border:1px solid #12344c;border-radius:4px;padding:10px;overflow:auto;font:12px "Share Tech Mono",monospace;margin:0}
+.code button{position:absolute;right:6px;top:6px;padding:2px 8px;font-size:11px}.reply p{margin:0 0 6px}.msg{margin-bottom:10px}.reply{max-height:28vh}
+.bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none}.hud{position:relative;z-index:1}
